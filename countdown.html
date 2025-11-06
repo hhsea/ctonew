@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多倒计时管理器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-subtitle {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .input-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .input-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 15px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px 15px;
+            border: none;
+            background: #f0f0f0;
+            color: #666;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .mode-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .mode-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .mode-btn.active:hover {
+            background: #667eea;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .input-group.active {
+            display: block;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        input[type="time"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        input[type="date"]:focus,
+        input[type="time"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .time-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        .time-inputs input {
+            padding: 10px 8px;
+        }
+
+        .time-inputs .unit-label {
+            text-align: center;
+            font-size: 0.8em;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .datetime-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-danger {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #ff5252;
+        }
+
+        .btn-warning {
+            background: #ffa500;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #ff8c00;
+        }
+
+        .countdowns-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            min-height: 400px;
+        }
+
+        .countdowns-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+
+        .countdowns-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .countdown-item {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            border-radius: 12px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 20px;
+            align-items: center;
+            transition: all 0.3s ease;
+            border-left: 4px solid #667eea;
+        }
+
+        .countdown-item:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transform: translateX(5px);
+        }
+
+        .countdown-item.finished {
+            background: linear-gradient(135deg, #ffe5e5 0%, #ffcccc 100%);
+            border-left-color: #ff6b6b;
+        }
+
+        .countdown-content {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .countdown-title-section {
+            flex: 1;
+        }
+
+        .countdown-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .countdown-title:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .countdown-title.editing {
+            background: white;
+        }
+
+        .countdown-title-input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 2px solid #667eea;
+            border-radius: 4px;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .countdown-info {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .countdown-timer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .countdown-time {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .countdown-item.finished .countdown-time {
+            color: #ff6b6b;
+        }
+
+        .countdown-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .countdown-controls button {
+            padding: 8px 15px;
+            font-size: 0.9em;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 1.1em;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: none;
+            border-left: 4px solid #c62828;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .countdown-item {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .countdown-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .countdown-timer {
+                width: 100%;
+            }
+
+            .countdown-controls {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .countdown-controls button {
+                flex: 1;
+                min-width: 80px;
+            }
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.85em;
+        }
+
+        .audio-element {
+            display: none;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            max-width: 300px;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification.success {
+            border-left: 4px solid #4caf50;
+            color: #2e7d32;
+        }
+
+        .notification.error {
+            border-left: 4px solid #f44336;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⏱️ 多倒计时管理器</h1>
+            <p class="header-subtitle">创建和管理多个同时进行的倒计时</p>
+        </header>
+
+        <div class="main-content">
+            <div class="input-section">
+                <h2>创建倒计时</h2>
+
+                <div class="mode-selector">
+                    <button class="mode-btn active" data-mode="duration">时长输入</button>
+                    <button class="mode-btn" data-mode="datetime">结束时间</button>
+                </div>
+
+                <div class="error-message" id="errorMessage"></div>
+
+                <!-- Duration Mode -->
+                <div class="input-group active" id="durationMode">
+                    <label for="titleInput">倒计时名称</label>
+                    <input type="text" id="titleInput" placeholder="例如：会议、日常任务等">
+
+                    <label style="margin-top: 15px;">设置时长</label>
+                    <div class="time-inputs">
+                        <div>
+                            <input type="number" id="hoursInput" min="0" max="23" value="0" placeholder="0">
+                            <div class="unit-label">时</div>
+                        </div>
+                        <div>
+                            <input type="number" id="minutesInput" min="0" max="59" value="1" placeholder="0">
+                            <div class="unit-label">分</div>
+                        </div>
+                        <div>
+                            <input type="number" id="secondsInput" min="0" max="59" value="0" placeholder="0">
+                            <div class="unit-label">秒</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DateTime Mode -->
+                <div class="input-group" id="datetimeMode">
+                    <label for="titleInput2">倒计时名称</label>
+                    <input type="text" id="titleInput2" placeholder="例如：截止日期、活动时间等">
+
+                    <label style="margin-top: 15px;">选择结束时间</label>
+                    <div class="datetime-inputs">
+                        <div>
+                            <input type="date" id="endDate">
+                        </div>
+                        <div>
+                            <input type="time" id="endTime">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary" id="addCountdownBtn">创建倒计时</button>
+                    <button class="btn-secondary" id="clearAllBtn">清除全部</button>
+                </div>
+            </div>
+
+            <div class="countdowns-section">
+                <h2>倒计时列表</h2>
+                <div class="countdowns-list" id="countdownsList">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <div class="empty-state-text">还没有倒计时，创建一个开始吧！</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <audio class="audio-element" id="alertSound" src="./alert.mp3"></audio>
+
+    <script>
+        class CountdownManager {
+            constructor() {
+                this.countdowns = [];
+                this.nextId = 1;
+                this.currentMode = 'duration';
+                this.timers = {};
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.loadFromStorage();
+                this.render();
+            }
+
+            setupEventListeners() {
+                // Mode selector
+                document.querySelectorAll('.mode-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => this.switchMode(e.target.dataset.mode));
+                });
+
+                // Add countdown button
+                document.getElementById('addCountdownBtn').addEventListener('click', () => this.addCountdown());
+
+                // Clear all button
+                document.getElementById('clearAllBtn').addEventListener('click', () => this.clearAll());
+
+                // Enter key support
+                [
+                    document.getElementById('titleInput'),
+                    document.getElementById('hoursInput'),
+                    document.getElementById('minutesInput'),
+                    document.getElementById('secondsInput'),
+                    document.getElementById('titleInput2'),
+                    document.getElementById('endDate'),
+                    document.getElementById('endTime')
+                ].forEach(el => {
+                    if (el) {
+                        el.addEventListener('keypress', (e) => {
+                            if (e.key === 'Enter') this.addCountdown();
+                        });
+                    }
+                });
+            }
+
+            switchMode(mode) {
+                this.currentMode = mode;
+                this.clearError();
+
+                // Update button styles
+                document.querySelectorAll('.mode-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.dataset.mode === mode) btn.classList.add('active');
+                });
+
+                // Update input groups
+                document.querySelectorAll('.input-group').forEach(group => {
+                    group.classList.remove('active');
+                });
+                if (mode === 'duration') {
+                    document.getElementById('durationMode').classList.add('active');
+                } else {
+                    document.getElementById('datetimeMode').classList.add('active');
+                }
+            }
+
+            addCountdown() {
+                this.clearError();
+
+                let countdown = null;
+
+                if (this.currentMode === 'duration') {
+                    const title = document.getElementById('titleInput').value.trim() || '倒计时';
+                    const hours = parseInt(document.getElementById('hoursInput').value, 10) || 0;
+                    const minutes = parseInt(document.getElementById('minutesInput').value, 10) || 0;
+                    const seconds = parseInt(document.getElementById('secondsInput').value, 10) || 0;
+
+                    const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+
+                    if (totalSeconds <= 0) {
+                        this.showError('请设置有效的时长（至少1秒）');
+                        return;
+                    }
+
+                    const startTime = Date.now();
+                    const targetTime = startTime + totalSeconds * 1000;
+
+                    countdown = {
+                        id: this.nextId++,
+                        title,
+                        type: 'duration',
+                        totalSeconds,
+                        remainingSeconds: Math.max(0, Math.ceil((targetTime - startTime) / 1000)),
+                        startTime,
+                        targetTime,
+                        isRunning: true,
+                        isPaused: false,
+                        isFinished: false,
+                        createdAt: startTime
+                    };
+                } else {
+                    const title = document.getElementById('titleInput2').value.trim() || '倒计时';
+                    const dateStr = document.getElementById('endDate').value;
+                    const timeStr = document.getElementById('endTime').value;
+
+                    if (!dateStr || !timeStr) {
+                        this.showError('请选择完整的日期和时间');
+                        return;
+                    }
+
+                    const endDateTime = new Date(`${dateStr}T${timeStr}`);
+                    const now = Date.now();
+
+                    if (endDateTime.getTime() <= now) {
+                        this.showError('结束时间必须在当前时间之后');
+                        return;
+                    }
+
+                    const targetTime = endDateTime.getTime();
+                    const totalSeconds = Math.max(0, Math.ceil((targetTime - now) / 1000));
+
+                    countdown = {
+                        id: this.nextId++,
+                        title,
+                        type: 'datetime',
+                        endTime: targetTime,
+                        totalSeconds,
+                        remainingSeconds: totalSeconds,
+                        startTime: now,
+                        targetTime,
+                        isRunning: true,
+                        isPaused: false,
+                        isFinished: false,
+                        createdAt: now
+                    };
+                }
+
+                this.countdowns.push(countdown);
+                this.startCountdown(countdown.id);
+                this.saveToStorage();
+                this.render();
+                this.resetInputs();
+                this.showNotification(`倒计时 "${countdown.title}" 已创建`, 'success');
+            }
+
+            startCountdown(id) {
+                const countdown = this.countdowns.find(c => c.id === id);
+                if (!countdown) return;
+
+                if (this.timers[id]) {
+                    clearInterval(this.timers[id]);
+                    delete this.timers[id];
+                }
+
+                if (countdown.isFinished || !countdown.isRunning || countdown.isPaused) return;
+
+                if (typeof countdown.targetTime !== 'number') {
+                    countdown.targetTime = Date.now() + (countdown.remainingSeconds || 0) * 1000;
+                }
+
+                const updateRemaining = () => {
+                    if (!countdown.isPaused && countdown.isRunning) {
+                        const remainingMs = countdown.targetTime - Date.now();
+                        countdown.remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+
+                        if (remainingMs <= 0) {
+                            countdown.remainingSeconds = 0;
+                            countdown.isFinished = true;
+                            countdown.isRunning = false;
+                            clearInterval(this.timers[id]);
+                            delete this.timers[id];
+                            countdown.targetTime = Date.now();
+                            this.playAlert();
+                            this.showNotification(`倒计时 "${countdown.title}" 已完成！`, 'success');
+                        }
+
+                        this.saveToStorage();
+                        this.render();
+                    }
+                };
+
+                updateRemaining();
+
+                if (!countdown.isFinished && countdown.isRunning && !countdown.isPaused) {
+                    this.timers[id] = setInterval(updateRemaining, 1000);
+                }
+            }
+
+            pauseCountdown(id) {
+                const countdown = this.countdowns.find(c => c.id === id);
+                if (!countdown || countdown.isFinished || !countdown.isRunning) {
+                    return;
+                }
+
+                if (countdown.isPaused) {
+                    const remainingMs = typeof countdown.pausedRemainingMs === 'number'
+                        ? countdown.pausedRemainingMs
+                        : Math.max(0, countdown.remainingSeconds * 1000);
+                    countdown.targetTime = Date.now() + remainingMs;
+                    countdown.startTime = Date.now();
+                    countdown.isPaused = false;
+                    delete countdown.pausedRemainingMs;
+                    this.startCountdown(id);
+                    this.saveToStorage();
+                    this.render();
+                    return;
+                }
+
+                if (typeof countdown.targetTime !== 'number') {
+                    countdown.targetTime = Date.now() + (countdown.remainingSeconds || 0) * 1000;
+                }
+                const remainingMs = Math.max(0, countdown.targetTime - Date.now());
+                countdown.pausedRemainingMs = remainingMs;
+                countdown.remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+                countdown.isPaused = true;
+
+                if (this.timers[id]) {
+                    clearInterval(this.timers[id]);
+                    delete this.timers[id];
+                }
+
+                this.saveToStorage();
+                this.render();
+            }
+
+            stopCountdown(id) {
+                const countdown = this.countdowns.find(c => c.id === id);
+                if (!countdown) {
+                    return;
+                }
+
+                const now = Date.now();
+                const baseTargetTime = typeof countdown.targetTime === 'number'
+                    ? countdown.targetTime
+                    : now + (countdown.remainingSeconds || 0) * 1000;
+                const remainingMs = countdown.isPaused && typeof countdown.pausedRemainingMs === 'number'
+                    ? countdown.pausedRemainingMs
+                    : Math.max(0, baseTargetTime - now);
+
+                countdown.remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+                countdown.isRunning = false;
+                countdown.isPaused = false;
+                if (remainingMs <= 0) {
+                    countdown.isFinished = true;
+                    countdown.remainingSeconds = 0;
+                }
+                delete countdown.pausedRemainingMs;
+
+                if (this.timers[id]) {
+                    clearInterval(this.timers[id]);
+                    delete this.timers[id];
+                }
+
+                countdown.targetTime = now + remainingMs;
+                countdown.startTime = now;
+
+                this.saveToStorage();
+                this.render();
+            }
+
+            deleteCountdown(id) {
+                if (this.timers[id]) {
+                    clearInterval(this.timers[id]);
+                    delete this.timers[id];
+                }
+                const index = this.countdowns.findIndex(c => c.id === id);
+                if (index !== -1) {
+                    const title = this.countdowns[index].title;
+                    this.countdowns.splice(index, 1);
+                    this.saveToStorage();
+                    this.render();
+                    this.showNotification(`倒计时 "${title}" 已删除`, 'success');
+                }
+            }
+
+            updateTitle(id, newTitle) {
+                const countdown = this.countdowns.find(c => c.id === id);
+                if (countdown) {
+                    countdown.title = newTitle || '倒计时';
+                    this.saveToStorage();
+                    this.render();
+                }
+            }
+
+            clearAll() {
+                if (this.countdowns.length === 0) return;
+
+                if (confirm('确定要清除所有倒计时吗？')) {
+                    Object.keys(this.timers).forEach(id => {
+                        clearInterval(this.timers[id]);
+                    });
+                    this.countdowns = [];
+                    this.timers = {};
+                    this.saveToStorage();
+                    this.render();
+                    this.showNotification('已清除所有倒计时', 'success');
+                }
+            }
+
+            playAlert() {
+                const audio = document.getElementById('alertSound');
+                if (audio) {
+                    audio.currentTime = 0;
+                    audio.play().catch(() => {
+                        console.log('Audio play failed or not available');
+                    });
+                }
+            }
+
+            formatTime(seconds) {
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                const secs = seconds % 60;
+                return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            }
+
+            getStatusText(countdown) {
+                if (countdown.isFinished) {
+                    return '已完成';
+                }
+                if (countdown.isPaused) {
+                    return '已暂停';
+                }
+                if (countdown.isRunning) {
+                    return '进行中';
+                }
+                return '已停止';
+            }
+
+            render() {
+                const list = document.getElementById('countdownsList');
+
+                if (this.countdowns.length === 0) {
+                    list.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📋</div>
+                            <div class="empty-state-text">还没有倒计时，创建一个开始吧！</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                list.innerHTML = this.countdowns.map(countdown => `
+                    <div class="countdown-item ${countdown.isFinished ? 'finished' : ''}">
+                        <div class="countdown-content">
+                            <div class="countdown-title-section">
+                                <div class="countdown-title" onclick="manager.editTitle(${countdown.id})">${this.escapeHtml(countdown.title)}</div>
+                                <div class="countdown-info">${this.getStatusText(countdown)} • 创建于 ${new Date(countdown.createdAt).toLocaleString()}</div>
+                            </div>
+                            <div class="countdown-timer">
+                                <div class="countdown-time">${this.formatTime(countdown.remainingSeconds)}</div>
+                                <div class="countdown-controls">
+                                    ${!countdown.isFinished ? `
+                                        <button class="btn-small btn-warning" onclick="manager.pauseCountdown(${countdown.id})">
+                                            ${countdown.isPaused ? '继续' : '暂停'}
+                                        </button>
+                                        <button class="btn-small btn-secondary" onclick="manager.stopCountdown(${countdown.id})">停止</button>
+                                    ` : ''}
+                                    <button class="btn-small btn-danger" onclick="manager.deleteCountdown(${countdown.id})">删除</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            editTitle(id) {
+                const countdown = this.countdowns.find(c => c.id === id);
+                if (!countdown) return;
+
+                const newTitle = prompt('编辑倒计时名称:', countdown.title);
+                if (newTitle !== null) {
+                    this.updateTitle(id, newTitle.trim());
+                }
+            }
+
+            resetInputs() {
+                document.getElementById('titleInput').value = '';
+                document.getElementById('hoursInput').value = '0';
+                document.getElementById('minutesInput').value = '1';
+                document.getElementById('secondsInput').value = '0';
+                document.getElementById('titleInput2').value = '';
+                document.getElementById('endDate').value = '';
+                document.getElementById('endTime').value = '';
+            }
+
+            showError(message) {
+                const errorEl = document.getElementById('errorMessage');
+                errorEl.textContent = message;
+                errorEl.classList.add('show');
+                setTimeout(() => {
+                    errorEl.classList.remove('show');
+                }, 5000);
+            }
+
+            clearError() {
+                const errorEl = document.getElementById('errorMessage');
+                errorEl.classList.remove('show');
+            }
+
+            showNotification(message, type = 'success') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                document.body.appendChild(notification);
+
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+            }
+
+            escapeHtml(text) {
+                const map = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                };
+                return text.replace(/[&<>"']/g, m => map[m]);
+            }
+
+            saveToStorage() {
+                try {
+                    const data = this.countdowns.map(c => ({
+                        ...c,
+                        // Ensure datetime countdowns have endTime preserved
+                        endTime: c.type === 'datetime' ? c.endTime : undefined
+                    }));
+                    localStorage.setItem('countdowns', JSON.stringify(data));
+                } catch (e) {
+                    console.error('Failed to save to localStorage:', e);
+                }
+            }
+
+            loadFromStorage() {
+                try {
+                    const data = localStorage.getItem('countdowns');
+                    if (data) {
+                        const countdowns = JSON.parse(data);
+                        const now = Date.now();
+
+                        this.countdowns = countdowns
+                            .filter(c => {
+                                const storedTarget = typeof c.targetTime === 'number'
+                                    ? c.targetTime
+                                    : (c.type === 'datetime' && c.endTime ? c.endTime : null);
+                                if (c.type === 'datetime' && !c.isPaused && typeof storedTarget === 'number' && storedTarget <= now) {
+                                    return false;
+                                }
+                                return true;
+                            })
+                            .map(c => {
+                                const countdown = { ...c };
+                                const initialTarget = typeof countdown.targetTime === 'number'
+                                    ? countdown.targetTime
+                                    : (countdown.type === 'datetime' && countdown.endTime
+                                        ? countdown.endTime
+                                        : now + (countdown.remainingSeconds || countdown.totalSeconds || 0) * 1000);
+
+                                countdown.targetTime = initialTarget;
+                                countdown.startTime = countdown.startTime || countdown.createdAt || now;
+
+                                if (countdown.isPaused) {
+                                    const pausedMs = typeof countdown.pausedRemainingMs === 'number'
+                                        ? countdown.pausedRemainingMs
+                                        : Math.max(0, initialTarget - now);
+                                    countdown.pausedRemainingMs = pausedMs;
+                                    countdown.remainingSeconds = Math.max(0, Math.ceil(pausedMs / 1000));
+                                } else {
+                                    const remainingMs = initialTarget - now;
+                                    countdown.remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+                                    if (remainingMs <= 0) {
+                                        countdown.remainingSeconds = 0;
+                                        countdown.isFinished = true;
+                                        countdown.isRunning = false;
+                                    }
+                                    delete countdown.pausedRemainingMs;
+                                }
+
+                                if (countdown.type === 'datetime') {
+                                    countdown.endTime = initialTarget;
+                                }
+
+                                return countdown;
+                            });
+
+                        this.nextId = Math.max(...this.countdowns.map(c => c.id), 0) + 1;
+
+                        this.countdowns.forEach(c => {
+                            if (c.isRunning && !c.isFinished && !c.isPaused) {
+                                this.startCountdown(c.id);
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error('Failed to load from localStorage:', e);
+                }
+            }
+        }
+
+        // Initialize the manager
+        const manager = new CountdownManager();
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            manager.saveToStorage();
+        });
+    </script>
+</body>
+</html>
