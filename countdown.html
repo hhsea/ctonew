@@ -154,6 +154,44 @@
             margin-top: 5px;
         }
 
+        .preset-section {
+            margin-top: 20px;
+        }
+
+        .preset-title {
+            font-size: 0.85em;
+            color: #888;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .preset-btn {
+            background: #eef2ff;
+            color: #4c51bf;
+            padding: 8px 14px;
+            border-radius: 6px;
+            border: none;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .preset-btn:hover {
+            background: #c7d2fe;
+            transform: translateY(-1px);
+        }
+
+        .preset-btn:active {
+            transform: translateY(0);
+        }
+
         .datetime-inputs {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -480,6 +518,17 @@
                             <div class="unit-label">秒</div>
                         </div>
                     </div>
+
+                    <div class="preset-section">
+                        <div class="preset-title">快速预设</div>
+                        <div class="preset-buttons">
+                            <button type="button" class="preset-btn" data-preset-seconds="60">1分钟</button>
+                            <button type="button" class="preset-btn" data-preset-seconds="300">5分钟</button>
+                            <button type="button" class="preset-btn" data-preset-seconds="600">10分钟</button>
+                            <button type="button" class="preset-btn" data-preset-seconds="1500">25分钟</button>
+                            <button type="button" class="preset-btn" data-preset-seconds="3600">1小时</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- DateTime Mode -->
@@ -562,6 +611,15 @@
                         });
                     }
                 });
+
+                document.querySelectorAll('[data-preset-seconds]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const seconds = parseInt(btn.dataset.presetSeconds, 10);
+                        if (Number.isFinite(seconds) && seconds > 0) {
+                            this.applyPreset(seconds);
+                        }
+                    });
+                });
             }
 
             switchMode(mode) {
@@ -583,6 +641,26 @@
                 } else {
                     document.getElementById('datetimeMode').classList.add('active');
                 }
+            }
+
+            applyPreset(totalSeconds) {
+                if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) {
+                    return;
+                }
+
+                if (this.currentMode !== 'duration') {
+                    this.switchMode('duration');
+                }
+
+                this.clearError();
+
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+
+                document.getElementById('hoursInput').value = String(hours);
+                document.getElementById('minutesInput').value = String(minutes);
+                document.getElementById('secondsInput').value = String(seconds);
             }
 
             addCountdown() {
@@ -744,37 +822,97 @@
                 this.render();
             }
 
-            stopCountdown(id) {
+            adjustCountdown(id, deltaSeconds) {
                 const countdown = this.countdowns.find(c => c.id === id);
-                if (!countdown) {
+                if (!countdown || !Number.isFinite(deltaSeconds) || deltaSeconds === 0) {
                     return;
                 }
 
+                const deltaMs = Math.round(deltaSeconds * 1000);
                 const now = Date.now();
-                const baseTargetTime = typeof countdown.targetTime === 'number'
+
+                if (countdown.isFinished) {
+                    if (deltaMs <= 0) {
+                        return;
+                    }
+                    countdown.isFinished = false;
+                    countdown.isRunning = true;
+                    countdown.isPaused = false;
+                    countdown.targetTime = now + deltaMs;
+                    countdown.startTime = now;
+                    countdown.remainingSeconds = Math.max(0, Math.ceil(deltaMs / 1000));
+                    delete countdown.pausedRemainingMs;
+                    this.startCountdown(id);
+                    this.saveToStorage();
+                    this.render();
+                    return;
+                }
+
+                if (countdown.isPaused) {
+                    const currentMs = typeof countdown.pausedRemainingMs === 'number'
+                        ? countdown.pausedRemainingMs
+                        : Math.max(0, (typeof countdown.targetTime === 'number' ? countdown.targetTime : now) - now);
+                    let newRemainingMs = currentMs + deltaMs;
+                    if (newRemainingMs < 0) newRemainingMs = 0;
+
+                    countdown.pausedRemainingMs = newRemainingMs;
+                    countdown.remainingSeconds = Math.max(0, Math.ceil(newRemainingMs / 1000));
+
+                    if (newRemainingMs === 0) {
+                        countdown.remainingSeconds = 0;
+                        countdown.isFinished = true;
+                        countdown.isRunning = false;
+                        countdown.isPaused = false;
+                        countdown.targetTime = now;
+                        delete countdown.pausedRemainingMs;
+                    } else {
+                        countdown.isFinished = false;
+                        countdown.isRunning = true;
+                    }
+
+                    this.saveToStorage();
+                    this.render();
+                    return;
+                }
+
+                let targetTime = typeof countdown.targetTime === 'number'
                     ? countdown.targetTime
                     : now + (countdown.remainingSeconds || 0) * 1000;
-                const remainingMs = countdown.isPaused && typeof countdown.pausedRemainingMs === 'number'
-                    ? countdown.pausedRemainingMs
-                    : Math.max(0, baseTargetTime - now);
 
-                countdown.remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
-                countdown.isRunning = false;
-                countdown.isPaused = false;
-                if (remainingMs <= 0) {
-                    countdown.isFinished = true;
-                    countdown.remainingSeconds = 0;
+                targetTime += deltaMs;
+
+                if (targetTime < now) {
+                    targetTime = now;
                 }
+
+                countdown.targetTime = targetTime;
+                countdown.startTime = countdown.startTime || now;
+
+                const remainingMs = Math.max(0, targetTime - now);
+                countdown.remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+
+                if (remainingMs === 0) {
+                    countdown.remainingSeconds = 0;
+                    countdown.isFinished = true;
+                    countdown.isRunning = false;
+                    countdown.isPaused = false;
+                    countdown.targetTime = now;
+                    delete countdown.pausedRemainingMs;
+                    if (this.timers[id]) {
+                        clearInterval(this.timers[id]);
+                        delete this.timers[id];
+                    }
+                    this.saveToStorage();
+                    this.render();
+                    return;
+                }
+
+                countdown.isFinished = false;
+                countdown.isRunning = true;
+                countdown.isPaused = false;
                 delete countdown.pausedRemainingMs;
 
-                if (this.timers[id]) {
-                    clearInterval(this.timers[id]);
-                    delete this.timers[id];
-                }
-
-                countdown.targetTime = now + remainingMs;
-                countdown.startTime = now;
-
+                this.startCountdown(id);
                 this.saveToStorage();
                 this.render();
             }
@@ -875,7 +1013,10 @@
                                         <button class="btn-small btn-warning" onclick="manager.pauseCountdown(${countdown.id})">
                                             ${countdown.isPaused ? '继续' : '暂停'}
                                         </button>
-                                        <button class="btn-small btn-secondary" onclick="manager.stopCountdown(${countdown.id})">停止</button>
+                                        <button class="btn-small btn-secondary" onclick="manager.adjustCountdown(${countdown.id}, 60)">+1分</button>
+                                        <button class="btn-small btn-secondary" onclick="manager.adjustCountdown(${countdown.id}, -60)">-1分</button>
+                                        <button class="btn-small btn-secondary" onclick="manager.adjustCountdown(${countdown.id}, 10)">+10秒</button>
+                                        <button class="btn-small btn-secondary" onclick="manager.adjustCountdown(${countdown.id}, -10)">-10秒</button>
                                     ` : ''}
                                     <button class="btn-small btn-danger" onclick="manager.deleteCountdown(${countdown.id})">删除</button>
                                 </div>
