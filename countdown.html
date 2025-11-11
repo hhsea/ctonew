@@ -219,6 +219,24 @@
             background: #ff8c00;
         }
 
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #45a049;
+        }
+
+        .btn-info {
+            background: #2196f3;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #1976d2;
+        }
+
         .countdowns-section {
             background: white;
             padding: 30px;
@@ -258,6 +276,15 @@
         .countdown-item.finished {
             background: linear-gradient(135deg, #ffe5e5 0%, #ffcccc 100%);
             border-left-color: #ff6b6b;
+        }
+
+        .countdown-item.overtime {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            border-left-color: #ff9800;
+        }
+
+        .countdown-item.overtime .countdown-time {
+            color: #ff9800;
         }
 
         .countdown-content {
@@ -325,13 +352,29 @@
 
         .countdown-controls {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
+            justify-content: center;
         }
 
         .countdown-controls button {
-            padding: 8px 15px;
-            font-size: 0.9em;
+            padding: 6px 10px;
+            font-size: 0.8em;
+            min-width: 60px;
+        }
+
+        .time-adjust-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            margin-bottom: 8px;
+            width: 100%;
+        }
+
+        .time-adjust-buttons button {
+            padding: 4px 8px;
+            font-size: 0.75em;
+            min-width: 50px;
         }
 
         .empty-state {
@@ -389,12 +432,20 @@
 
             .countdown-controls {
                 width: 100%;
-                justify-content: flex-start;
+                justify-content: center;
             }
 
             .countdown-controls button {
                 flex: 1;
-                min-width: 80px;
+                min-width: 70px;
+            }
+
+            .time-adjust-buttons {
+                width: 100%;
+            }
+
+            .time-adjust-buttons button {
+                min-width: 60px;
             }
         }
 
@@ -665,21 +716,23 @@
                     clearInterval(this.timers[id]);
                 }
 
-                if (countdown.isFinished || !countdown.isRunning) return;
+                if (!countdown.isRunning) return;
+
+                let hasAlerted = false;
 
                 this.timers[id] = setInterval(() => {
                     if (!countdown.isPaused && countdown.isRunning) {
                         countdown.remainingSeconds--;
 
-                        if (countdown.remainingSeconds <= 0) {
-                            countdown.remainingSeconds = 0;
-                            countdown.isFinished = true;
-                            countdown.isRunning = false;
-                            clearInterval(this.timers[id]);
+                        // Play alert when reaching zero for the first time
+                        if (countdown.remainingSeconds === 0 && !hasAlerted) {
                             this.playAlert();
                             this.showNotification(`倒计时 "${countdown.title}" 已完成！`, 'success');
+                            hasAlerted = true;
+                            countdown.isFinished = true;
                         }
 
+                        // Continue counting even after zero
                         this.saveToStorage();
                         this.render();
                     }
@@ -731,6 +784,35 @@
                 }
             }
 
+            adjustTime(id, seconds) {
+                const countdown = this.countdowns.find(c => c.id === id);
+                if (!countdown) return;
+
+                // Adjust remaining time
+                countdown.remainingSeconds += seconds;
+
+                // For duration type, also adjust total seconds to maintain consistency
+                if (countdown.type === 'duration') {
+                    countdown.totalSeconds += seconds;
+                }
+
+                // For datetime type, adjust the end time
+                if (countdown.type === 'datetime' && countdown.endTime) {
+                    countdown.endTime += seconds * 1000;
+                }
+
+                // If countdown was finished and we're adding time, restart it
+                if (countdown.isFinished && seconds > 0) {
+                    countdown.isFinished = false;
+                    countdown.isRunning = true;
+                    countdown.isPaused = false;
+                    this.startCountdown(countdown.id);
+                }
+
+                this.saveToStorage();
+                this.render();
+            }
+
             clearAll() {
                 if (this.countdowns.length === 0) return;
 
@@ -757,14 +839,20 @@
             }
 
             formatTime(seconds) {
-                const hours = Math.floor(seconds / 3600);
-                const minutes = Math.floor((seconds % 3600) / 60);
-                const secs = seconds % 60;
-                return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                const isNegative = seconds < 0;
+                const absSeconds = Math.abs(seconds);
+                const hours = Math.floor(absSeconds / 3600);
+                const minutes = Math.floor((absSeconds % 3600) / 60);
+                const secs = absSeconds % 60;
+                const sign = isNegative ? '-' : '';
+                return `${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
             }
 
             getStatusText(countdown) {
-                if (countdown.isFinished) {
+                if (countdown.remainingSeconds < 0) {
+                    return '已超时';
+                }
+                if (countdown.isFinished && countdown.remainingSeconds === 0) {
                     return '已完成';
                 }
                 if (countdown.isPaused) {
@@ -789,8 +877,10 @@
                     return;
                 }
 
-                list.innerHTML = this.countdowns.map(countdown => `
-                    <div class="countdown-item ${countdown.isFinished ? 'finished' : ''}">
+                list.innerHTML = this.countdowns.map(countdown => {
+                    const itemClass = countdown.remainingSeconds < 0 ? 'overtime' : (countdown.isFinished ? 'finished' : '');
+                    return `
+                    <div class="countdown-item ${itemClass}">
                         <div class="countdown-content">
                             <div class="countdown-title-section">
                                 <div class="countdown-title" onclick="manager.editTitle(${countdown.id})">${this.escapeHtml(countdown.title)}</div>
@@ -798,19 +888,25 @@
                             </div>
                             <div class="countdown-timer">
                                 <div class="countdown-time">${this.formatTime(countdown.remainingSeconds)}</div>
+                                <div class="time-adjust-buttons">
+                                    <button class="btn-small btn-success" onclick="manager.adjustTime(${countdown.id}, 300)">+5分钟</button>
+                                    <button class="btn-small btn-success" onclick="manager.adjustTime(${countdown.id}, 3600)">+1小时</button>
+                                    <button class="btn-small btn-info" onclick="manager.adjustTime(${countdown.id}, -300)">-5分钟</button>
+                                    <button class="btn-small btn-info" onclick="manager.adjustTime(${countdown.id}, -3600)">-1小时</button>
+                                </div>
                                 <div class="countdown-controls">
-                                    ${!countdown.isFinished ? `
+                                    ${countdown.isRunning ? `
                                         <button class="btn-small btn-warning" onclick="manager.pauseCountdown(${countdown.id})">
                                             ${countdown.isPaused ? '继续' : '暂停'}
                                         </button>
-                                        <button class="btn-small btn-secondary" onclick="manager.stopCountdown(${countdown.id})">停止</button>
                                     ` : ''}
                                     <button class="btn-small btn-danger" onclick="manager.deleteCountdown(${countdown.id})">删除</button>
                                 </div>
                             </div>
                         </div>
                     </div>
-                `).join('');
+                `;
+                }).join('');
             }
 
             editTitle(id) {
@@ -889,20 +985,16 @@
                         const countdowns = JSON.parse(data);
                         const now = new Date().getTime();
 
-                        this.countdowns = countdowns.filter(c => {
-                            // Remove expired datetime countdowns or old duration countdowns
-                            if (c.type === 'datetime' && c.endTime <= now) {
-                                return false;
-                            }
-                            return true;
-                        }).map(c => {
+                        this.countdowns = countdowns.map(c => {
                             // Update remaining time for datetime countdowns
                             if (c.type === 'datetime' && c.endTime) {
-                                const remaining = Math.max(0, Math.floor((c.endTime - now) / 1000));
+                                const remaining = Math.floor((c.endTime - now) / 1000);
                                 c.remainingSeconds = remaining;
+                                // Mark as finished if exactly at zero, but allow negative times
                                 if (remaining === 0) {
                                     c.isFinished = true;
-                                    c.isRunning = false;
+                                } else if (remaining < 0) {
+                                    c.isFinished = true;
                                 }
                             }
                             return c;
@@ -912,7 +1004,7 @@
 
                         // Restart running countdowns
                         this.countdowns.forEach(c => {
-                            if (c.isRunning && !c.isFinished) {
+                            if (c.isRunning) {
                                 this.startCountdown(c.id);
                             }
                         });
