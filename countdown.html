@@ -335,15 +335,22 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
+        }
+
+        .countdown-time-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            justify-content: center;
         }
 
         .countdown-time {
-            font-size: 1.4em;
+            font-size: 1.6em;
             font-weight: bold;
             color: #667eea;
             font-family: 'Courier New', monospace;
-            min-width: 100px;
+            min-width: 105px;
             text-align: center;
         }
 
@@ -365,17 +372,32 @@
         }
 
         .time-adjust-buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 3px;
-            margin-bottom: 5px;
-            width: 100%;
+            display: flex;
+            gap: 2px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
         }
 
         .time-adjust-buttons button {
-            padding: 3px 6px;
-            font-size: 0.65em;
-            min-width: 45px;
+            padding: 2px 4px;
+            font-size: 0.55em;
+            min-width: 30px;
+            white-space: nowrap;
+            line-height: 1.2;
+        }
+
+        .countdown-time-wrapper .time-adjust-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .countdown-time-wrapper .time-adjust-buttons button {
+            padding: 2px 3px;
+            font-size: 0.5em;
+            min-width: 28px;
+            white-space: nowrap;
         }
 
         .empty-state {
@@ -888,12 +910,16 @@
                                 <div class="countdown-info">${this.getStatusText(countdown)} • 创建于 ${new Date(countdown.createdAt).toLocaleString()}</div>
                             </div>
                             <div class="countdown-timer">
-                                <div class="countdown-time">${this.formatTime(countdown.remainingSeconds)}</div>
-                                <div class="time-adjust-buttons">
-                                    <button class="btn-small btn-success" onclick="manager.adjustTime(${countdown.id}, 300)">+5分钟</button>
-                                    <button class="btn-small btn-success" onclick="manager.adjustTime(${countdown.id}, 3600)">+1小时</button>
-                                    <button class="btn-small btn-info" onclick="manager.adjustTime(${countdown.id}, -300)">-5分钟</button>
-                                    <button class="btn-small btn-info" onclick="manager.adjustTime(${countdown.id}, -3600)">-1小时</button>
+                                <div class="countdown-time-wrapper">
+                                    <div class="time-adjust-buttons">
+                                        <button class="btn-small btn-info" onclick="manager.adjustTime(${countdown.id}, -60)">-1分</button>
+                                        <button class="btn-small btn-info" onclick="manager.adjustTime(${countdown.id}, -30)">-30秒</button>
+                                    </div>
+                                    <div class="countdown-time">${this.formatTime(countdown.remainingSeconds)}</div>
+                                    <div class="time-adjust-buttons">
+                                        <button class="btn-small btn-success" onclick="manager.adjustTime(${countdown.id}, 30)">+30秒</button>
+                                        <button class="btn-small btn-success" onclick="manager.adjustTime(${countdown.id}, 60)">+1分</button>
+                                    </div>
                                 </div>
                                 <div class="countdown-controls">
                                     ${countdown.isRunning ? `
