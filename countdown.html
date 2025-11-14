@@ -734,41 +734,81 @@
                 const countdown = this.countdowns.find(c => c.id === id);
                 if (!countdown) return;
 
-                // Clear existing timer
                 if (this.timers[id]) {
                     clearInterval(this.timers[id]);
+                    delete this.timers[id];
                 }
 
-                if (!countdown.isRunning) return;
+                if (!countdown.isRunning || countdown.isPaused) return;
+
+                // Initialize targetTime if not set
+                if (typeof countdown.targetTime !== 'number') {
+                    countdown.targetTime = Date.now() + (countdown.remainingSeconds || 0) * 1000;
+                }
 
                 let hasAlerted = false;
 
-                this.timers[id] = setInterval(() => {
+                const updateCountdown = () => {
                     if (!countdown.isPaused && countdown.isRunning) {
-                        countdown.remainingSeconds--;
-
-                        // Play alert when reaching zero for the first time
-                        if (countdown.remainingSeconds === 0 && !hasAlerted) {
+                        const remainingMs = countdown.targetTime - Date.now();
+                        const newRemainingSeconds = Math.ceil(remainingMs / 1000);
+                        
+                        // Check if we just crossed zero
+                        if (countdown.remainingSeconds > 0 && newRemainingSeconds <= 0 && !hasAlerted) {
                             this.playAlert();
                             this.showNotification(`倒计时 "${countdown.title}" 已完成！`, 'success');
                             hasAlerted = true;
                             countdown.isFinished = true;
                         }
 
-                        // Continue counting even after zero
+                        countdown.remainingSeconds = newRemainingSeconds;
+
                         this.saveToStorage();
                         this.render();
                     }
-                }, 1000);
+                };
+
+                updateCountdown();
+
+                if (!countdown.isFinished && countdown.isRunning && !countdown.isPaused) {
+                    this.timers[id] = setInterval(updateCountdown, 1000);
+                }
             }
 
             pauseCountdown(id) {
                 const countdown = this.countdowns.find(c => c.id === id);
-                if (countdown) {
-                    countdown.isPaused = !countdown.isPaused;
+                if (!countdown || !countdown.isRunning) return;
+
+                if (countdown.isPaused) {
+                    // Resume: recalculate targetTime based on remaining seconds
+                    const remainingMs = typeof countdown.pausedRemainingMs === 'number'
+                        ? countdown.pausedRemainingMs
+                        : Math.max(0, countdown.remainingSeconds * 1000);
+                    countdown.targetTime = Date.now() + remainingMs;
+                    countdown.isPaused = false;
+                    delete countdown.pausedRemainingMs;
+                    this.startCountdown(id);
                     this.saveToStorage();
                     this.render();
+                    return;
                 }
+
+                // Pause: store remaining time
+                if (typeof countdown.targetTime !== 'number') {
+                    countdown.targetTime = Date.now() + (countdown.remainingSeconds || 0) * 1000;
+                }
+                const remainingMs = Math.max(0, countdown.targetTime - Date.now());
+                countdown.pausedRemainingMs = remainingMs;
+                countdown.remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+                countdown.isPaused = true;
+
+                if (this.timers[id]) {
+                    clearInterval(this.timers[id]);
+                    delete this.timers[id];
+                }
+
+                this.saveToStorage();
+                this.render();
             }
 
             stopCountdown(id) {
@@ -811,6 +851,11 @@
                 const countdown = this.countdowns.find(c => c.id === id);
                 if (!countdown) return;
 
+                // Adjust targetTime if it exists
+                if (typeof countdown.targetTime === 'number') {
+                    countdown.targetTime += seconds * 1000;
+                }
+
                 // Adjust remaining time
                 countdown.remainingSeconds += seconds;
 
@@ -829,6 +874,8 @@
                     countdown.isFinished = false;
                     countdown.isRunning = true;
                     countdown.isPaused = false;
+                    // Recalculate targetTime for restart
+                    countdown.targetTime = Date.now() + Math.max(0, countdown.remainingSeconds * 1000);
                     this.startCountdown(countdown.id);
                 }
 
@@ -1010,18 +1057,35 @@
                     const data = localStorage.getItem('countdowns');
                     if (data) {
                         const countdowns = JSON.parse(data);
-                        const now = new Date().getTime();
+                        const nowMs = Date.now();
+                        const now = nowMs / 1000;
 
                         this.countdowns = countdowns.map(c => {
-                            // Update remaining time for datetime countdowns
+                            // Recalculate remaining time based on targetTime or endTime
                             if (c.type === 'datetime' && c.endTime) {
-                                const remaining = Math.floor((c.endTime - now) / 1000);
+                                const remaining = Math.floor((c.endTime - nowMs) / 1000);
                                 c.remainingSeconds = remaining;
-                                // Mark as finished if exactly at zero, but allow negative times
-                                if (remaining === 0) {
+                                // Recalculate targetTime from remaining seconds
+                                if (c.isRunning && !c.isPaused) {
+                                    c.targetTime = nowMs + Math.max(0, remaining * 1000);
+                                }
+                                // Mark as finished if at or past zero
+                                if (remaining <= 0) {
                                     c.isFinished = true;
-                                } else if (remaining < 0) {
-                                    c.isFinished = true;
+                                }
+                            } else if (c.type === 'duration') {
+                                // For duration type, recalculate remaining time if not paused
+                                if (c.createdAt && c.isRunning && !c.isPaused && !c.isFinished) {
+                                    const elapsedSeconds = Math.floor((nowMs - c.createdAt) / 1000);
+                                    const remaining = c.totalSeconds - elapsedSeconds;
+                                    c.remainingSeconds = Math.max(0, remaining);
+                                    c.targetTime = c.createdAt + (c.totalSeconds * 1000);
+                                    if (remaining <= 0) {
+                                        c.isFinished = true;
+                                    }
+                                } else if (!c.targetTime && c.remainingSeconds > 0 && c.isRunning) {
+                                    // Initialize targetTime if not set
+                                    c.targetTime = nowMs + (c.remainingSeconds * 1000);
                                 }
                             }
                             return c;
@@ -1031,7 +1095,7 @@
 
                         // Restart running countdowns
                         this.countdowns.forEach(c => {
-                            if (c.isRunning) {
+                            if (c.isRunning && !c.isPaused && !c.isFinished) {
                                 this.startCountdown(c.id);
                             }
                         });
